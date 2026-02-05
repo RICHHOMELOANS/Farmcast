@@ -1,126 +1,616 @@
-import { useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
+const NAVY = "#1B2A4A";
+const TEAL = "#2B8C96";
+const TEAL_LIGHT = "#E8F4F6";
+const DARK = "#1a1a2e";
+const CREAM = "#FAF9F7";
+const WARM_GRAY = "#6B7280";
+const DARK_GRAY = "#333333";
+
+function useInView(threshold = 0.15) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.unobserve(el); } },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return [ref, visible];
+}
+
+function FadeIn({ children, delay = 0, className = "" }) {
+  const [ref, visible] = useInView();
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(32px)",
+        transition: `opacity 0.7s ease ${delay}s, transform 0.7s ease ${delay}s`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ScoreBar({ score, label, color, delay = 0 }) {
+  const [ref, visible] = useInView();
+  return (
+    <div ref={ref} style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: WARM_GRAY, fontWeight: 500 }}>{label}</span>
+        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: NAVY, fontWeight: 700 }}>{score}</span>
+      </div>
+      <div style={{ height: 8, borderRadius: 4, background: "#E5E7EB", overflow: "hidden" }}>
+        <div
+          style={{
+            height: "100%",
+            borderRadius: 4,
+            background: color,
+            width: visible ? `${score}%` : "0%",
+            transition: `width 1.2s ease ${delay}s`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ number, label, delay = 0 }) {
+  const [ref, visible] = useInView();
+  return (
+    <div
+      ref={ref}
+      style={{
+        textAlign: "center",
+        padding: "28px 16px",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(24px)",
+        transition: `all 0.6s ease ${delay}s`,
+      }}
+    >
+      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 48, fontWeight: 700, color: TEAL, lineHeight: 1 }}>{number}</div>
+      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: WARM_GRAY, marginTop: 8, letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</div>
+    </div>
+  );
+}
+
+const tierData = [
+  { score: "80–100", tier: "Hot", color: "#DC2626", bg: "#FEF2F2", action: "Door knock, handwritten note, personal call. Highest-value targets." },
+  { score: "60–79", tier: "Warm", color: "#F59E0B", bg: "#FFFBEB", action: "Targeted digital ads + personalized mailer with CMA offer." },
+  { score: "40–59", tier: "Watch", color: TEAL, bg: TEAL_LIGHT, action: "Standard farm mailers. Monitor for weekly score changes." },
+  { score: "0–39", tier: "Cold", color: "#9CA3AF", bg: "#F9FAFB", action: "Branding only. Minimal spend." },
+];
+
+const signalData = [
+  { cat: "Mortgage & Equity", signals: "Loan amount, estimated value (AVM), time since purchase, ARM resets", icon: "🏦" },
+  { cat: "Life Events", signals: "Divorce filings, probate, pre-foreclosure, bankruptcy", icon: "⚡" },
+  { cat: "Property Signals", signals: "Building permits, code violations, tax delinquency", icon: "🏠" },
+  { cat: "Neighborhood", signals: "Recent nearby sales, DOM trends, listing velocity", icon: "📍" },
+  { cat: "Demographics", signals: "Owner age, household composition, length of residence", icon: "👤" },
+];
+
+const timelineData = [
+  { phase: "1", title: "Foundation", time: "Weeks 1–4", desc: "Database, MLS data ingestion, county scrapers, feature engineering, first trained model → scored CSV of 500 properties." },
+  { phase: "2", title: "Dashboard", time: "Weeks 5–8", desc: "Map-based web app, property detail cards, score breakdowns, mailer export, email outreach integration." },
+  { phase: "3", title: "Enhanced Signals", time: "Weeks 9–12", desc: "Court records scraper, building permits, voter file integration, model retrain, automated weekly refresh." },
+  { phase: "4", title: "Scale", time: "Months 4–6", desc: "Multi-farm support, CRM integrations, automated retraining pipeline." },
+];
 
 export default function FarmCastApp() {
+  const [scrollY, setScrollY] = useState(0);
+
   useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.12 });
-
-    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-
-    const barObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const fills = entry.target.querySelectorAll('.score-bar-fill');
-          fills.forEach((fill, i) => {
-            setTimeout(() => {
-              fill.style.width = fill.dataset.width + '%';
-            }, i * 200);
-          });
-          barObserver.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.3 });
-
-    document.querySelectorAll('.score-bar').forEach(el => barObserver.observe(el.closest('.fade-in') || el));
-
-    return () => {
-      observer.disconnect();
-      barObserver.disconnect();
-    };
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
-    <>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", color: NAVY, background: CREAM, overflowX: "hidden" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+      {/* === HERO === */}
+      <section style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        textAlign: "center",
+        padding: "60px 24px",
+        position: "relative",
+        overflow: "hidden",
+        background: `linear-gradient(160deg, ${DARK} 0%, ${NAVY} 50%, ${TEAL} 100%)`,
+      }}>
+        {/* Subtle grid */}
+        <div style={{
+          position: "absolute", inset: 0, opacity: 0.04,
+          backgroundImage: `linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)`,
+          backgroundSize: "60px 60px",
+        }} />
+        {/* Glow */}
+        <div style={{
+          position: "absolute", top: "20%", left: "50%", transform: "translate(-50%, -50%)",
+          width: 600, height: 600, borderRadius: "50%",
+          background: `radial-gradient(circle, ${TEAL}22, transparent 70%)`,
+        }} />
+
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13, letterSpacing: "0.2em", textTransform: "uppercase",
+            color: TEAL, marginBottom: 24, fontWeight: 500,
+            opacity: 1,
+            animation: "fadeInUp 0.8s ease forwards",
+          }}>
+            Proprietary Farming System
+          </div>
+          <h1 style={{
+            fontFamily: "'Playfair Display', serif", fontSize: "clamp(48px, 8vw, 88px)", fontWeight: 900,
+            color: "#fff", lineHeight: 1.05, margin: "0 0 24px",
+            animation: "fadeInUp 0.8s ease 0.15s both",
+          }}>
+            Farm<span style={{ color: TEAL }}>Cast</span>
+          </h1>
+          <p style={{
+            fontSize: "clamp(18px, 2.5vw, 22px)", color: "rgba(255,255,255,0.65)", maxWidth: 520, margin: "0 auto 40px",
+            lineHeight: 1.6, fontWeight: 300,
+            animation: "fadeInUp 0.8s ease 0.3s both",
+          }}>
+            Know which homeowners are most likely to sell — before they call another agent.
+          </p>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "rgba(255,255,255,0.4)",
+            animation: "fadeInUp 0.8s ease 0.45s both",
+          }}>
+            Built for Stephanie Heifus &nbsp;·&nbsp; Missouri Market &nbsp;·&nbsp; February 2026
+          </div>
+        </div>
+
+        <div style={{
+          position: "absolute", bottom: 40, left: "50%", transform: "translateX(-50%)",
+          animation: "bounce 2s ease infinite",
+        }}>
+          <svg width="24" height="24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round">
+            <path d="M12 5v14M5 12l7 7 7-7" />
+          </svg>
+        </div>
+      </section>
+
+      {/* === THE IDEA === */}
+      <section style={{ padding: "100px 24px", maxWidth: 720, margin: "0 auto" }}>
+        <FadeIn>
+          <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>The Idea</div>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 24px" }}>
+            Stop farming blind.
+          </h2>
+        </FadeIn>
+        <FadeIn delay={0.1}>
+          <p style={{ fontSize: 17, lineHeight: 1.75, color: WARM_GRAY, marginBottom: 20 }}>
+            Traditional geographic farming treats every home the same. You send identical mailers to 500 homes when only 15–20 are realistically going to list this year. That's a lot of wasted postage and zero personalization.
+          </p>
+        </FadeIn>
+        <FadeIn delay={0.15}>
+          <p style={{ fontSize: 17, lineHeight: 1.75, color: WARM_GRAY, marginBottom: 32 }}>
+            FarmCast scores every property in your farm on its probability of listing in the next 6–12 months. Instead of 500 identical touches, you make 25 meaningful ones.
+          </p>
+        </FadeIn>
+        <FadeIn delay={0.2}>
+          <div style={{
+            background: `linear-gradient(135deg, ${NAVY}, ${TEAL})`,
+            borderRadius: 12, padding: "28px 32px", color: "#fff",
+          }}>
+            <p style={{ fontSize: 15, lineHeight: 1.7, margin: 0, fontWeight: 300 }}>
+              This isn't a lead service you're renting. No per-lead fees, no shared data with competing agents, no black-box scoring. <strong style={{ fontWeight: 600 }}>You own the system, the data stays yours, and no other agent in your market has access to the same intelligence.</strong>
+            </p>
+          </div>
+        </FadeIn>
+      </section>
+
+      {/* === STATS === */}
+      <section style={{ padding: "40px 24px 80px", maxWidth: 720, margin: "0 auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderTop: `1px solid #E5E7EB`, borderBottom: `1px solid #E5E7EB` }}>
+          <StatCard number="500" label="Homes Scored" delay={0} />
+          <StatCard number="25" label="High-Value Targets" delay={0.1} />
+          <StatCard number="6–12" label="Month Forecast" delay={0.2} />
+        </div>
+      </section>
+
+      {/* === COMPARISON === */}
+      <section style={{ padding: "80px 24px", background: "#fff" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>Why This Is Different</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 24px" }}>
+              You've seen these tools before.
+            </h2>
+            <p style={{ fontSize: 17, lineHeight: 1.75, color: WARM_GRAY, marginBottom: 40 }}>
+              Remine, Offrs, SmartZip — they all promise seller predictions. Here's what they actually deliver versus what FarmCast does differently.
+            </p>
+          </FadeIn>
+
+          {/* Competitor cards */}
+          <FadeIn delay={0.1}>
+            <div style={{
+              background: "#FEF2F2", borderRadius: 12, padding: 24, marginBottom: 16,
+              borderLeft: "4px solid #EF4444",
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#DC2626", marginBottom: 8 }}>Offrs / SmartZip</div>
+              <div style={{ fontSize: 14, color: WARM_GRAY, lineHeight: 1.7 }}>
+                Lead-purchase model — you're buying leads at $20–50+ each from a shared pool. Other agents in your area buy the same leads. Scoring is a black box: you can't see why a property ranked high. National model, not tuned to your market. You're renting access, not owning anything.
+              </div>
+            </div>
+          </FadeIn>
+
+          <FadeIn delay={0.15}>
+            <div style={{
+              background: "#FEF3C7", borderRadius: 12, padding: 24, marginBottom: 16,
+              borderLeft: "4px solid #F59E0B",
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#D97706", marginBottom: 8 }}>Remine</div>
+              <div style={{ fontSize: 14, color: WARM_GRAY, lineHeight: 1.7 }}>
+                Property data browser with MLS integration. Shows ownership, mortgage info, some propensity indicators. But it's passive — you're still manually hunting through properties hoping to spot patterns. No predictive scoring, no ranked targeting list. A research tool, not a targeting engine.
+              </div>
+            </div>
+          </FadeIn>
+
+          <FadeIn delay={0.2}>
+            <div style={{
+              background: `linear-gradient(135deg, ${TEAL_LIGHT}, #D1FAE5)`, borderRadius: 12, padding: 24, marginBottom: 32,
+              borderLeft: `4px solid ${TEAL}`,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: TEAL, marginBottom: 8 }}>FarmCast</div>
+              <div style={{ fontSize: 14, color: NAVY, lineHeight: 1.7 }}>
+                <strong>Your system, your data, your market.</strong> Predictive scoring trained specifically on your farm area. No per-lead fees, ever. No shared data with competing agents — you're the only one who sees this intelligence. Transparent scoring: you see exactly why each property ranked high. When you tell me "this one's wrong," we tune the model. Try doing that with Offrs.
+              </div>
+            </div>
+          </FadeIn>
+
+          {/* Comparison table */}
+          <FadeIn delay={0.25}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 500 }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid ${NAVY}` }}>
+                    <th style={{ textAlign: "left", padding: "12px 8px", fontWeight: 600, color: NAVY }}></th>
+                    <th style={{ textAlign: "center", padding: "12px 8px", fontWeight: 600, color: "#DC2626" }}>Offrs</th>
+                    <th style={{ textAlign: "center", padding: "12px 8px", fontWeight: 600, color: "#D97706" }}>Remine</th>
+                    <th style={{ textAlign: "center", padding: "12px 8px", fontWeight: 600, color: TEAL }}>FarmCast</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["Predictive scoring", "Yes (black box)", "No", "Yes (transparent)"],
+                    ["Per-lead fees", "$20–50+", "N/A", "None"],
+                    ["Shared with competitors", "Yes", "N/A", "No — exclusive"],
+                    ["See scoring factors", "No", "No", "Yes"],
+                    ["Tuned to your market", "No (national)", "No", "Yes"],
+                    ["You own the system", "No (subscription)", "No", "Yes"],
+                  ].map((row, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #E5E7EB", background: i % 2 === 1 ? "#FAFAFA" : "transparent" }}>
+                      <td style={{ padding: "12px 8px", color: WARM_GRAY }}>{row[0]}</td>
+                      <td style={{ textAlign: "center", padding: "12px 8px", color: row[1].includes("No") || row[1].includes("N/A") ? "#9CA3AF" : DARK_GRAY }}>{row[1]}</td>
+                      <td style={{ textAlign: "center", padding: "12px 8px", color: "#9CA3AF" }}>{row[2]}</td>
+                      <td style={{ textAlign: "center", padding: "12px 8px", color: TEAL, fontWeight: 600 }}>{row[3]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* === SIGNALS === */}
+      <section style={{ padding: "80px 24px" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>How It Works</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 12px" }}>
+              Stacked signals, one score.
+            </h2>
+            <p style={{ fontSize: 17, lineHeight: 1.7, color: WARM_GRAY, marginBottom: 48 }}>
+              No single data point predicts a sale. But layer mortgage timing, life events, property activity, and neighborhood momentum together — and patterns emerge.
+            </p>
+          </FadeIn>
+
+          {signalData.map((s, i) => (
+            <FadeIn key={i} delay={i * 0.08}>
+              <div style={{
+                display: "flex", gap: 20, padding: "20px 0",
+                borderBottom: i < signalData.length - 1 ? "1px solid #F3F4F6" : "none",
+              }}>
+                <div style={{ fontSize: 28, width: 48, textAlign: "center", flexShrink: 0, paddingTop: 2 }}>{s.icon}</div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: NAVY, marginBottom: 4 }}>{s.cat}</div>
+                  <div style={{ fontSize: 14, color: WARM_GRAY, lineHeight: 1.6 }}>{s.signals}</div>
+                </div>
+              </div>
+            </FadeIn>
+          ))}
+
+          <FadeIn delay={0.4}>
+            <p style={{ fontSize: 15, lineHeight: 1.7, color: WARM_GRAY, marginTop: 32, fontStyle: "italic" }}>
+              Every scored property shows the top contributing factors — so you know exactly why it's hot and can craft your outreach message around it.
+            </p>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* === SCORE TIERS === */}
+      <section style={{ padding: "80px 24px" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>Score Tiers</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 40px" }}>
+              Every home gets a playbook.
+            </h2>
+          </FadeIn>
+
+          <FadeIn delay={0.1}>
+            <div style={{ marginBottom: 40 }}>
+              <ScoreBar score={92} label="Hot — 1247 Elm St" color="#DC2626" delay={0.3} />
+              <ScoreBar score={71} label="Warm — 834 Oak Dr" color="#F59E0B" delay={0.5} />
+              <ScoreBar score={48} label="Watch — 2201 Pine Ave" color={TEAL} delay={0.7} />
+              <ScoreBar score={22} label="Cold — 560 Maple Ct" color="#D1D5DB" delay={0.9} />
+            </div>
+          </FadeIn>
+
+          {tierData.map((t, i) => (
+            <FadeIn key={i} delay={0.1 + i * 0.08}>
+              <div style={{
+                display: "flex", gap: 16, alignItems: "flex-start",
+                padding: "16px 20px", marginBottom: 8,
+                borderRadius: 8, background: t.bg, borderLeft: `4px solid ${t.color}`,
+              }}>
+                <div style={{ minWidth: 64 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: t.color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{t.tier}</div>
+                  <div style={{ fontSize: 13, color: WARM_GRAY }}>{t.score}</div>
+                </div>
+                <div style={{ fontSize: 14, color: NAVY, lineHeight: 1.6 }}>{t.action}</div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
+      {/* === ACCURACY === */}
+      <section style={{ padding: "80px 24px", background: "#fff" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>The Honest Answer</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 24px" }}>
+              How accurate is this?
+            </h2>
+            <p style={{ fontSize: 17, lineHeight: 1.75, color: WARM_GRAY, marginBottom: 40 }}>
+              We won't know exact numbers until the model is trained on real Missouri data. But here's what's realistic based on how these models perform — and how we'll validate before investing further.
+            </p>
+          </FadeIn>
+
+          {/* Accuracy gauge cards */}
+          <FadeIn delay={0.1}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 40 }}>
+              <div style={{ background: CREAM, borderRadius: 12, padding: "24px 20px", textAlign: "center", border: "1px solid #E5E7EB" }}>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 700, color: "#F59E0B", lineHeight: 1 }}>70%</div>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: WARM_GRAY, marginTop: 8, fontWeight: 600 }}>Phase 1 Target</div>
+                <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 4, lineHeight: 1.4 }}>Mortgage & equity<br/>data only</div>
+              </div>
+              <div style={{ background: CREAM, borderRadius: 12, padding: "24px 20px", textAlign: "center", border: "1px solid #E5E7EB" }}>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 700, color: TEAL, lineHeight: 1 }}>80%</div>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: WARM_GRAY, marginTop: 8, fontWeight: 600 }}>Phase 3 Target</div>
+                <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 4, lineHeight: 1.4 }}>+ life events<br/>& permits</div>
+              </div>
+              <div style={{ background: CREAM, borderRadius: 12, padding: "24px 20px", textAlign: "center", border: "1px solid #E5E7EB" }}>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 700, color: "#DC2626", lineHeight: 1 }}>8–10</div>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: WARM_GRAY, marginTop: 8, fontWeight: 600 }}>Out of 25 Hot</div>
+                <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 4, lineHeight: 1.4 }}>expected to list<br/>within 12 months</div>
+              </div>
+            </div>
+          </FadeIn>
+
+          <FadeIn delay={0.15}>
+            <p style={{ fontSize: 17, lineHeight: 1.75, color: WARM_GRAY, marginBottom: 24 }}>
+              Those percentages measure how well the model ranks properties — a score of 70% means it correctly identifies a future seller over a non-seller about 7 out of 10 times. The commercial platforms (Offrs, SmartZip) claim similar ranges with broader, less targeted data.
+            </p>
+          </FadeIn>
+
+          <FadeIn delay={0.2}>
+            <div style={{
+              background: `linear-gradient(135deg, ${NAVY}, ${TEAL})`,
+              borderRadius: 12, padding: "28px 32px", color: "#fff", marginBottom: 32,
+            }}>
+              <p style={{ fontSize: 15, lineHeight: 1.7, margin: 0, fontWeight: 300 }}>
+                <strong style={{ fontWeight: 600 }}>The number that actually matters</strong> isn't a model statistic — it's this: of the 25 homes FarmCast flags as Hot, how many actually list within a year? If 8–10 do, that's a dramatically better hit rate than mailing 500 homes and hoping. That's the metric we optimize for.
+              </p>
+            </div>
+          </FadeIn>
+
+          <FadeIn delay={0.25}>
+            <div style={{ fontWeight: 600, fontSize: 15, color: NAVY, marginBottom: 8 }}>How we prove it before going further</div>
+            <p style={{ fontSize: 17, lineHeight: 1.75, color: WARM_GRAY, margin: 0 }}>
+              Before building the dashboard, we run a retrospective validation — score every current property in the test farm, then check against actual listings from the past 6 months. If the model would have predicted last year's listings accurately, we move to Phase 2. If not, we iterate on the data and features first. No wasted investment.
+            </p>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* === MISSOURI === */}
+      <section style={{ padding: "80px 24px" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>Missouri Market</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 24px" }}>
+              Non-disclosure? Handled.
+            </h2>
+            <p style={{ fontSize: 17, lineHeight: 1.75, color: WARM_GRAY, marginBottom: 32 }}>
+              Missouri doesn't record sale prices in public records. That matters — but it's solved. Here's how:
+            </p>
+          </FadeIn>
+
+          <FadeIn delay={0.1}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 32 }}>
+              {[
+                { title: "REcolorado → Heartland MLS", desc: "Our existing REcolorado access includes IntraMatrix data sharing with Heartland MLS (KCRAR), covering 50 counties across KS/MO. Historical sold prices, listing data, DOM — all accessible. No new subscriptions." },
+                { title: "ATTOM AVM Estimates", desc: "Automated valuations still work in non-disclosure states. We already have this integration active — current estimated values at no additional cost." },
+                { title: "Mortgage-Based Inference", desc: "Deeds of trust are public. A recorded $320K mortgage at 80% LTV implies ~$400K purchase price. Not perfect, but directionally strong." },
+              ].map((item, i) => (
+                <div key={i} style={{
+                  padding: "20px 24px", borderRadius: 10,
+                  background: CREAM, border: "1px solid #E5E7EB",
+                }}>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: NAVY, marginBottom: 6 }}>{item.title}</div>
+                  <div style={{ fontSize: 14, lineHeight: 1.65, color: WARM_GRAY }}>{item.desc}</div>
+                </div>
+              ))}
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* === DAY IN THE LIFE === */}
+      <section style={{ padding: "80px 24px", background: "#fff" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>In Practice</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 40px" }}>
+              A week with FarmCast.
+            </h2>
+          </FadeIn>
+
+          {[
+            { time: "Monday AM", text: "Open the dashboard. Your farm — 500 homes color-coded by score. Eight properties flagged Hot. Three jumped from Warm this week after a neighbor sale and a divorce filing hit court records." },
+            { time: "Outreach", text: "Pull the Hot list. Each card shows the score, top drivers, and owner info. Write three handwritten notes. Trigger five personalized CMA emails." },
+            { time: "Warm tier", text: "22 properties in Warm. Export to your mailer service. Targeted postcard with neighborhood stats. Cost: $15 instead of $250 for the whole farm." },
+            { time: "Week over week", text: "Watch scores shift. A property that's been Watch for months jumps to Warm after a cosmetic permit is filed. Add it to your follow-up list." },
+          ].map((item, i) => (
+            <FadeIn key={i} delay={i * 0.1}>
+              <div style={{ display: "flex", gap: 20, marginBottom: 28 }}>
+                <div style={{
+                  minWidth: 80, fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+                  fontWeight: 600, color: TEAL, textTransform: "uppercase", letterSpacing: "0.05em", paddingTop: 3,
+                }}>
+                  {item.time}
+                </div>
+                <div style={{ fontSize: 15, lineHeight: 1.7, color: WARM_GRAY, borderLeft: `2px solid #E5E7EB`, paddingLeft: 20 }}>
+                  {item.text}
+                </div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
+      {/* === TIMELINE === */}
+      <section style={{ padding: "80px 24px" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>Roadmap</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 40px" }}>
+              From concept to live in 12 weeks.
+            </h2>
+          </FadeIn>
+
+          {timelineData.map((t, i) => (
+            <FadeIn key={i} delay={i * 0.1}>
+              <div style={{
+                display: "flex", gap: 20, marginBottom: 24, alignItems: "flex-start",
+              }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+                  background: `linear-gradient(135deg, ${NAVY}, ${TEAL})`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", fontWeight: 700, fontSize: 16,
+                  fontFamily: "'Playfair Display', serif",
+                }}>
+                  {t.phase}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                    <div style={{ fontWeight: 600, fontSize: 16, color: NAVY }}>{t.title}</div>
+                    <div style={{ fontSize: 12, color: TEAL, fontWeight: 500 }}>{t.time}</div>
+                  </div>
+                  <div style={{ fontSize: 14, lineHeight: 1.65, color: WARM_GRAY }}>{t.desc}</div>
+                </div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
+      {/* === YOUR ROLE === */}
+      <section style={{ padding: "80px 24px", background: "#fff" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>Your Role</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 24px" }}>
+              I build it. You sharpen it.
+            </h2>
+            <p style={{ fontSize: 17, lineHeight: 1.75, color: WARM_GRAY, marginBottom: 40 }}>
+              The technical build is on me. Your market knowledge is what turns a good model into a great one.
+            </p>
+          </FadeIn>
+
+          {[
+            { num: "01", title: "Pick the test neighborhood", desc: "400–600 homes with decent listing volume. Somewhere you know well enough to gut-check the model's output." },
+            { num: "02", title: "Gut-check the scores", desc: "When the first scored list drops — does the Hot list match your intuition? That feedback is how the model improves." },
+            { num: "03", title: "Test the outreach", desc: "Run the playbook on one cycle of Hot/Warm properties. We measure conversion against your traditional farming numbers." },
+            { num: "04", title: "Share local intel", desc: "Court records, permit patterns, HOA drama, neighborhood dynamics — signals only someone on the ground can catch." },
+          ].map((item, i) => (
+            <FadeIn key={i} delay={i * 0.1}>
+              <div style={{
+                display: "flex", gap: 20, marginBottom: 28, alignItems: "flex-start",
+              }}>
+                <div style={{
+                  fontFamily: "'Playfair Display', serif", fontSize: 32, fontWeight: 700,
+                  color: TEAL, opacity: 0.3, minWidth: 48, lineHeight: 1,
+                }}>
+                  {item.num}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 16, color: NAVY, marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: 14, lineHeight: 1.65, color: WARM_GRAY }}>{item.desc}</div>
+                </div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
+      {/* === CLOSING === */}
+      <section style={{
+        padding: "100px 24px",
+        background: `linear-gradient(160deg, ${DARK} 0%, ${NAVY} 50%, ${TEAL} 100%)`,
+        textAlign: "center",
+      }}>
+        <FadeIn>
+          <h2 style={{
+            fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 5vw, 44px)",
+            fontWeight: 700, color: "#fff", lineHeight: 1.2, margin: "0 0 24px",
+          }}>
+            Let's pick the neighborhood.
+          </h2>
+          <p style={{
+            fontSize: 17, color: "rgba(255,255,255,0.6)", maxWidth: 480, margin: "0 auto 12px", lineHeight: 1.7, fontWeight: 300,
+          }}>
+            Scored property list in your hands within 3–4 weeks of locking down the farm area.
+          </p>
+          <p style={{
+            fontSize: 15, color: "rgba(255,255,255,0.35)", marginTop: 40,
+          }}>
+            — Rich
+          </p>
+        </FadeIn>
+      </section>
+
       <style>{`
-        :root {
-          --navy: #1B2A4A;
-          --teal: #2B8C96;
-          --teal-light: #E8F4F6;
-          --dark: #1a1a2e;
-          --cream: #FAF9F7;
-          --warm-gray: #6B7280;
-          --border: #E5E7EB;
-        }
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-        body {
-          font-family: 'DM Sans', -apple-system, sans-serif;
-          color: var(--navy);
-          background: var(--cream);
-          overflow-x: hidden;
-          -webkit-font-smoothing: antialiased;
-        }
-        .fade-in {
-          opacity: 0;
-          transform: translateY(32px);
-          transition: opacity 0.7s ease, transform 0.7s ease;
-        }
-        .fade-in.visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        .fade-in.d1 { transition-delay: 0.08s; }
-        .fade-in.d2 { transition-delay: 0.16s; }
-        .fade-in.d3 { transition-delay: 0.24s; }
-        .fade-in.d4 { transition-delay: 0.32s; }
-        .fade-in.d5 { transition-delay: 0.4s; }
-        .hero {
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          text-align: center;
-          padding: 60px 24px;
-          position: relative;
-          overflow: hidden;
-          background: linear-gradient(160deg, var(--dark) 0%, var(--navy) 50%, var(--teal) 100%);
-        }
-        .hero-grid {
-          position: absolute; inset: 0; opacity: 0.04;
-          background-image: linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
-          background-size: 60px 60px;
-        }
-        .hero-glow {
-          position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%);
-          width: 600px; height: 600px; border-radius: 50%;
-          background: radial-gradient(circle, rgba(43,140,150,0.13), transparent 70%);
-          pointer-events: none;
-        }
-        .hero-content { position: relative; z-index: 1; }
-        .hero-tag {
-          font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase;
-          color: var(--teal); margin-bottom: 24px; font-weight: 500;
-          animation: fadeInUp 0.8s ease forwards;
-        }
-        .hero h1 {
-          font-family: 'Playfair Display', serif;
-          font-size: clamp(48px, 8vw, 88px);
-          font-weight: 900; color: #fff; line-height: 1.05;
-          margin: 0 0 24px;
-          animation: fadeInUp 0.8s ease 0.15s both;
-        }
-        .hero h1 span { color: var(--teal); }
-        .hero-sub {
-          font-size: clamp(18px, 2.5vw, 22px); color: rgba(255,255,255,0.65);
-          max-width: 520px; margin: 0 auto 40px; line-height: 1.6; font-weight: 300;
-          animation: fadeInUp 0.8s ease 0.3s both;
-        }
-        .hero-meta {
-          font-size: 14px; color: rgba(255,255,255,0.4);
-          animation: fadeInUp 0.8s ease 0.45s both;
-        }
-        .hero-arrow {
-          position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-          animation: bounce 2s ease infinite;
-        }
-        .hero-arrow svg { stroke: rgba(255,255,255,0.3); }
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(24px); }
           to { opacity: 1; transform: translateY(0); }
@@ -130,439 +620,9 @@ export default function FarmCastApp() {
           40% { transform: translateX(-50%) translateY(-8px); }
           60% { transform: translateX(-50%) translateY(-4px); }
         }
-        .section { padding: 80px 24px; }
-        .section.white-bg { background: #fff; }
-        .section-inner { max-width: 720px; margin: 0 auto; }
-        .section-tag {
-          font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;
-          color: var(--teal); font-weight: 600; margin-bottom: 16px;
-        }
-        .section h2 {
-          font-family: 'Playfair Display', serif;
-          font-size: clamp(28px, 4vw, 40px);
-          font-weight: 700; color: var(--navy); line-height: 1.2;
-          margin: 0 0 24px;
-        }
-        .section p.body {
-          font-size: 17px; line-height: 1.75; color: var(--warm-gray); margin-bottom: 20px;
-        }
-        .section p.body:last-child { margin-bottom: 0; }
-        .callout {
-          background: linear-gradient(135deg, var(--navy), var(--teal));
-          border-radius: 12px; padding: 28px 32px; color: #fff;
-          margin-top: 32px;
-        }
-        .callout p { font-size: 15px; line-height: 1.7; font-weight: 300; margin: 0; }
-        .callout strong { font-weight: 600; }
-        .stats-bar {
-          display: grid; grid-template-columns: repeat(3, 1fr);
-          border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-          max-width: 720px; margin: 0 auto;
-          padding: 0 24px;
-        }
-        .stat { text-align: center; padding: 28px 16px; }
-        .stat-num {
-          font-family: 'Playfair Display', serif;
-          font-size: clamp(36px, 5vw, 48px); font-weight: 700;
-          color: var(--teal); line-height: 1;
-        }
-        .stat-label {
-          font-size: 13px; color: var(--warm-gray); margin-top: 8px;
-          letter-spacing: 0.05em; text-transform: uppercase;
-        }
-        .signal-row {
-          display: flex; gap: 20px; padding: 20px 0;
-          border-bottom: 1px solid #F3F4F6;
-        }
-        .signal-row:last-child { border-bottom: none; }
-        .signal-icon { font-size: 28px; width: 48px; text-align: center; flex-shrink: 0; padding-top: 2px; }
-        .signal-cat { font-weight: 600; font-size: 15px; color: var(--navy); margin-bottom: 4px; }
-        .signal-desc { font-size: 14px; color: var(--warm-gray); line-height: 1.6; }
-        .signal-note { font-size: 15px; line-height: 1.7; color: var(--warm-gray); margin-top: 32px; font-style: italic; }
-        .score-bar { margin-bottom: 16px; }
-        .score-bar-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
-        .score-bar-label { font-size: 14px; color: var(--warm-gray); font-weight: 500; }
-        .score-bar-val { font-size: 14px; color: var(--navy); font-weight: 700; }
-        .score-bar-track { height: 8px; border-radius: 4px; background: #E5E7EB; overflow: hidden; }
-        .score-bar-fill {
-          height: 100%; border-radius: 4px; width: 0%;
-          transition: width 1.2s ease;
-        }
-        .tier-card {
-          display: flex; gap: 16px; align-items: flex-start;
-          padding: 16px 20px; margin-bottom: 8px; border-radius: 8px;
-        }
-        .tier-meta { min-width: 64px; }
-        .tier-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-        .tier-range { font-size: 13px; color: var(--warm-gray); }
-        .tier-action { font-size: 14px; color: var(--navy); line-height: 1.6; }
-        .mo-card {
-          padding: 20px 24px; border-radius: 10px;
-          background: var(--cream); border: 1px solid var(--border);
-          margin-bottom: 16px;
-        }
-        .white-bg .mo-card { background: #F9FAFB; }
-        .mo-card-title { font-weight: 600; font-size: 15px; color: var(--navy); margin-bottom: 6px; }
-        .mo-card-desc { font-size: 14px; line-height: 1.65; color: var(--warm-gray); }
-        .day-row { display: flex; gap: 20px; margin-bottom: 28px; }
-        .day-time {
-          min-width: 80px; font-size: 12px; font-weight: 600;
-          color: var(--teal); text-transform: uppercase; letter-spacing: 0.05em; padding-top: 3px;
-        }
-        .day-text {
-          font-size: 15px; line-height: 1.7; color: var(--warm-gray);
-          border-left: 2px solid var(--border); padding-left: 20px;
-        }
-        .timeline-item { display: flex; gap: 20px; margin-bottom: 24px; align-items: flex-start; }
-        .timeline-num {
-          width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
-          background: linear-gradient(135deg, var(--navy), var(--teal));
-          display: flex; align-items: center; justify-content: center;
-          color: #fff; font-weight: 700; font-size: 16px;
-          font-family: 'Playfair Display', serif;
-        }
-        .timeline-body { flex: 1; }
-        .timeline-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-        .timeline-title { font-weight: 600; font-size: 16px; color: var(--navy); }
-        .timeline-time { font-size: 12px; color: var(--teal); font-weight: 500; }
-        .timeline-desc { font-size: 14px; line-height: 1.65; color: var(--warm-gray); }
-        .role-item { display: flex; gap: 20px; margin-bottom: 28px; align-items: flex-start; }
-        .role-num {
-          font-family: 'Playfair Display', serif;
-          font-size: 32px; font-weight: 700; color: var(--teal);
-          opacity: 0.3; min-width: 48px; line-height: 1;
-        }
-        .role-title { font-weight: 600; font-size: 16px; color: var(--navy); margin-bottom: 4px; }
-        .role-desc { font-size: 14px; line-height: 1.65; color: var(--warm-gray); }
-        .footer-cta {
-          padding: 100px 24px; text-align: center;
-          background: linear-gradient(160deg, var(--dark) 0%, var(--navy) 50%, var(--teal) 100%);
-        }
-        .footer-cta h2 {
-          font-family: 'Playfair Display', serif;
-          font-size: clamp(28px, 5vw, 44px);
-          font-weight: 700; color: #fff; line-height: 1.2; margin: 0 0 24px;
-        }
-        .footer-cta p {
-          font-size: 17px; color: rgba(255,255,255,0.6);
-          max-width: 480px; margin: 0 auto; line-height: 1.7; font-weight: 300;
-        }
-        .footer-sig { font-size: 15px; color: rgba(255,255,255,0.35); margin-top: 40px; }
-        .accuracy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-        .accuracy-card {
-          background: var(--cream); border-radius: 12px; padding: 24px 20px;
-          text-align: center; border: 1px solid var(--border);
-        }
-        .accuracy-num { font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 700; line-height: 1; }
-        .accuracy-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--warm-gray); margin-top: 8px; font-weight: 600; }
-        .accuracy-desc { font-size: 12px; color: var(--warm-gray); margin-top: 4px; line-height: 1.4; }
-        @media (max-width: 600px) {
-          .stats-bar { grid-template-columns: repeat(3, 1fr); gap: 0; }
-          .stat { padding: 20px 8px; }
-          .day-row { flex-direction: column; gap: 8px; }
-          .day-time { min-width: auto; }
-          .day-text { border-left: none; padding-left: 0; border-top: 2px solid var(--border); padding-top: 12px; }
-          .signal-row { gap: 14px; }
-          .signal-icon { width: 36px; font-size: 24px; }
-          .tier-card { flex-direction: column; gap: 8px; }
-          .tier-meta { min-width: auto; display: flex; gap: 12px; align-items: baseline; }
-          .timeline-header { flex-direction: column; gap: 2px; }
-          .accuracy-grid { grid-template-columns: 1fr; }
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
       `}</style>
-
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-
-      <section className="hero">
-        <div className="hero-grid"></div>
-        <div className="hero-glow"></div>
-        <div className="hero-content">
-          <div className="hero-tag">Proprietary Farming System</div>
-          <h1>Farm<span>Cast</span></h1>
-          <p className="hero-sub">Know which homeowners are most likely to sell — before they call another agent.</p>
-          <div className="hero-meta">Built for Stephanie Heifus · Missouri Market · February 2026</div>
-        </div>
-        <div className="hero-arrow">
-          <svg width="24" height="24" fill="none" strokeWidth="2" strokeLinecap="round">
-            <path d="M12 5v14M5 12l7 7 7-7"/>
-          </svg>
-        </div>
-      </section>
-
-      <section className="section" style={{paddingTop: '100px'}}>
-        <div className="section-inner">
-          <div className="fade-in">
-            <div className="section-tag">The Idea</div>
-            <h2>Stop farming blind.</h2>
-          </div>
-          <div className="fade-in d1">
-            <p className="body">Traditional geographic farming treats every home the same. You send identical mailers to 500 homes when only 15–20 are realistically going to list this year. That's a lot of wasted postage and zero personalization.</p>
-          </div>
-          <div className="fade-in d2">
-            <p className="body">FarmCast scores every property in your farm on its probability of listing in the next 6–12 months. Instead of 500 identical touches, you make 25 meaningful ones.</p>
-          </div>
-          <div className="fade-in d3">
-            <div className="callout">
-              <p>This isn't a lead service you're renting. No per-lead fees, no shared data with competing agents, no black-box scoring. <strong>You own the system, the data stays yours, and no other agent in your market has access to the same intelligence.</strong></p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={{padding: '40px 24px 80px'}}>
-        <div className="stats-bar">
-          <div className="stat fade-in"><div className="stat-num">500</div><div className="stat-label">Homes Scored</div></div>
-          <div className="stat fade-in d1"><div className="stat-num">25</div><div className="stat-label">High-Value Targets</div></div>
-          <div className="stat fade-in d2"><div className="stat-num">6–12</div><div className="stat-label">Month Forecast</div></div>
-        </div>
-      </section>
-
-      <section className="section white-bg">
-        <div className="section-inner">
-          <div className="fade-in">
-            <div className="section-tag">How It Works</div>
-            <h2>Stacked signals, one score.</h2>
-            <p className="body" style={{marginBottom: '48px'}}>No single data point predicts a sale. But layer mortgage timing, life events, property activity, and neighborhood momentum together — and patterns emerge.</p>
-          </div>
-          <div className="signal-row fade-in d1">
-            <div className="signal-icon">🏦</div>
-            <div><div className="signal-cat">Mortgage & Equity</div><div className="signal-desc">Loan amount, estimated value (AVM), time since purchase, ARM resets</div></div>
-          </div>
-          <div className="signal-row fade-in d2">
-            <div className="signal-icon">⚡</div>
-            <div><div className="signal-cat">Life Events</div><div className="signal-desc">Divorce filings, probate, pre-foreclosure, bankruptcy</div></div>
-          </div>
-          <div className="signal-row fade-in d3">
-            <div className="signal-icon">🏠</div>
-            <div><div className="signal-cat">Property Signals</div><div className="signal-desc">Building permits, code violations, tax delinquency</div></div>
-          </div>
-          <div className="signal-row fade-in d4">
-            <div className="signal-icon">📍</div>
-            <div><div className="signal-cat">Neighborhood</div><div className="signal-desc">Recent nearby sales, DOM trends, listing velocity</div></div>
-          </div>
-          <div className="signal-row fade-in d5" style={{borderBottom: 'none'}}>
-            <div className="signal-icon">👤</div>
-            <div><div className="signal-cat">Demographics</div><div className="signal-desc">Owner age, household composition, length of residence</div></div>
-          </div>
-          <div className="fade-in d5">
-            <p className="signal-note">Every scored property shows the top contributing factors — so you know exactly why it's hot and can craft your outreach around it.</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="section-inner">
-          <div className="fade-in">
-            <div className="section-tag">Score Tiers</div>
-            <h2>Every home gets a playbook.</h2>
-          </div>
-          <div className="fade-in d1" style={{marginBottom: '40px'}}>
-            <div className="score-bar">
-              <div className="score-bar-header"><span className="score-bar-label">Hot — 1247 Elm St</span><span className="score-bar-val">92</span></div>
-              <div className="score-bar-track"><div className="score-bar-fill" data-width="92" style={{background: '#DC2626'}}></div></div>
-            </div>
-            <div className="score-bar">
-              <div className="score-bar-header"><span className="score-bar-label">Warm — 834 Oak Dr</span><span className="score-bar-val">71</span></div>
-              <div className="score-bar-track"><div className="score-bar-fill" data-width="71" style={{background: '#F59E0B'}}></div></div>
-            </div>
-            <div className="score-bar">
-              <div className="score-bar-header"><span className="score-bar-label">Watch — 2201 Pine Ave</span><span className="score-bar-val">48</span></div>
-              <div className="score-bar-track"><div className="score-bar-fill" data-width="48" style={{background: '#2B8C96'}}></div></div>
-            </div>
-            <div className="score-bar">
-              <div className="score-bar-header"><span className="score-bar-label">Cold — 560 Maple Ct</span><span className="score-bar-val">22</span></div>
-              <div className="score-bar-track"><div className="score-bar-fill" data-width="22" style={{background: '#D1D5DB'}}></div></div>
-            </div>
-          </div>
-          <div className="tier-card fade-in d2" style={{background: '#FEF2F2', borderLeft: '4px solid #DC2626'}}>
-            <div className="tier-meta"><div className="tier-name" style={{color: '#DC2626'}}>Hot</div><div className="tier-range">80–100</div></div>
-            <div className="tier-action">Door knock, handwritten note, personal call. Highest-value targets.</div>
-          </div>
-          <div className="tier-card fade-in d3" style={{background: '#FFFBEB', borderLeft: '4px solid #F59E0B'}}>
-            <div className="tier-meta"><div className="tier-name" style={{color: '#F59E0B'}}>Warm</div><div className="tier-range">60–79</div></div>
-            <div className="tier-action">Targeted digital ads + personalized mailer with CMA offer.</div>
-          </div>
-          <div className="tier-card fade-in d4" style={{background: '#E8F4F6', borderLeft: '4px solid #2B8C96'}}>
-            <div className="tier-meta"><div className="tier-name" style={{color: '#2B8C96'}}>Watch</div><div className="tier-range">40–59</div></div>
-            <div className="tier-action">Standard farm mailers. Monitor for weekly score changes.</div>
-          </div>
-          <div className="tier-card fade-in d5" style={{background: '#F9FAFB', borderLeft: '4px solid #9CA3AF'}}>
-            <div className="tier-meta"><div className="tier-name" style={{color: '#9CA3AF'}}>Cold</div><div className="tier-range">0–39</div></div>
-            <div className="tier-action">Branding only. Minimal spend.</div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section white-bg">
-        <div className="section-inner">
-          <div className="fade-in">
-            <div className="section-tag">The Honest Answer</div>
-            <h2>How accurate is this?</h2>
-            <p className="body">We won't know exact numbers until the model is trained on real Missouri data. But here's what's realistic based on how these models perform in practice — and how we'll validate before investing further.</p>
-          </div>
-          <div className="fade-in d1" style={{margin: '40px 0'}}>
-            <div className="accuracy-grid">
-              <div className="accuracy-card">
-                <div className="accuracy-num" style={{color: '#F59E0B'}}>70%</div>
-                <div className="accuracy-label">Phase 1 Target</div>
-                <div className="accuracy-desc">Mortgage & equity<br/>data only</div>
-              </div>
-              <div className="accuracy-card">
-                <div className="accuracy-num" style={{color: '#2B8C96'}}>80%</div>
-                <div className="accuracy-label">Phase 3 Target</div>
-                <div className="accuracy-desc">+ life events<br/>& permits</div>
-              </div>
-              <div className="accuracy-card">
-                <div className="accuracy-num" style={{color: '#DC2626'}}>8–10</div>
-                <div className="accuracy-label">Out of 25 Hot</div>
-                <div className="accuracy-desc">expected to list<br/>within 12 months</div>
-              </div>
-            </div>
-          </div>
-          <div className="fade-in d2">
-            <p className="body">Those percentages measure how well the model ranks properties — a score of 70% means it correctly identifies a future seller over a non-seller about 7 out of 10 times. The commercial platforms (Offrs, SmartZip) claim similar ranges, and they're working with broader, less targeted data than what we'll have.</p>
-          </div>
-          <div className="fade-in d3">
-            <div className="callout">
-              <p><strong>The number that actually matters for you</strong> isn't a model statistic — it's this: of the 25 homes FarmCast flags as Hot, how many actually list within a year? If 8–10 do, that's a dramatically better hit rate than mailing 500 homes and hoping. That's the metric we optimize for and the one you'll feel in your business.</p>
-            </div>
-          </div>
-          <div className="fade-in d4" style={{marginTop: '32px'}}>
-            <div style={{fontWeight: 600, fontSize: '15px', color: '#1B2A4A', marginBottom: '8px'}}>How we prove it before going further</div>
-            <p className="body" style={{marginBottom: 0}}>Before building the dashboard, we run a retrospective validation — score every current property in the test farm, then check against actual listings from the past 6 months. If the model would have predicted last year's listings accurately, we move to Phase 2. If not, we iterate on the data and features first. No wasted investment.</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="section-inner">
-          <div className="fade-in">
-            <div className="section-tag">Missouri Market</div>
-            <h2>Non-disclosure? Handled.</h2>
-            <p className="body" style={{marginBottom: '32px'}}>Missouri doesn't record sale prices in public records. That matters — but it's solved.</p>
-          </div>
-          <div className="fade-in d1">
-            <div className="mo-card">
-              <div className="mo-card-title">REcolorado → Heartland MLS</div>
-              <div className="mo-card-desc">Our existing REcolorado access includes IntraMatrix data sharing with Heartland MLS (KCRAR), covering 50 counties across KS/MO. Historical sold prices, listing data, DOM — all accessible. No new subscriptions.</div>
-            </div>
-          </div>
-          <div className="fade-in d2">
-            <div className="mo-card">
-              <div className="mo-card-title">ATTOM AVM Estimates</div>
-              <div className="mo-card-desc">Automated valuations still work in non-disclosure states. We already have this integration active — current estimated values at no additional cost.</div>
-            </div>
-          </div>
-          <div className="fade-in d3">
-            <div className="mo-card">
-              <div className="mo-card-title">Mortgage-Based Inference</div>
-              <div className="mo-card-desc">Deeds of trust are public. A recorded $320K mortgage at 80% LTV implies ~$400K purchase price. Not perfect, but directionally strong.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section white-bg">
-        <div className="section-inner">
-          <div className="fade-in">
-            <div className="section-tag">In Practice</div>
-            <h2>A week with FarmCast.</h2>
-          </div>
-          <div style={{marginTop: '40px'}}>
-            <div className="day-row fade-in d1">
-              <div className="day-time">Monday AM</div>
-              <div className="day-text">Open the dashboard. Your farm — 500 homes color-coded by score. Eight properties flagged Hot. Three jumped from Warm this week after a neighbor sale and a divorce filing hit court records.</div>
-            </div>
-            <div className="day-row fade-in d2">
-              <div className="day-time">Outreach</div>
-              <div className="day-text">Pull the Hot list. Each card shows the score, top drivers, and owner info. Write three handwritten notes. Trigger five personalized CMA emails.</div>
-            </div>
-            <div className="day-row fade-in d3">
-              <div className="day-time">Warm Tier</div>
-              <div className="day-text">22 properties in Warm. Export to your mailer service. Targeted postcard with neighborhood stats. Cost: $15 instead of $250 for the whole farm.</div>
-            </div>
-            <div className="day-row fade-in d4">
-              <div className="day-time">Week / Week</div>
-              <div className="day-text">Watch scores shift. A property that's been Watch for months jumps to Warm after a cosmetic permit is filed. Add it to your follow-up list.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="section-inner">
-          <div className="fade-in">
-            <div className="section-tag">Roadmap</div>
-            <h2>From concept to live in 12 weeks.</h2>
-          </div>
-          <div style={{marginTop: '40px'}}>
-            <div className="timeline-item fade-in d1">
-              <div className="timeline-num">1</div>
-              <div className="timeline-body">
-                <div className="timeline-header"><div className="timeline-title">Foundation</div><div className="timeline-time">Weeks 1–4</div></div>
-                <div className="timeline-desc">Database, MLS data ingestion via REcolorado → Heartland MLS, county scrapers, feature engineering, first trained model → scored CSV of 500 properties.</div>
-              </div>
-            </div>
-            <div className="timeline-item fade-in d2">
-              <div className="timeline-num">2</div>
-              <div className="timeline-body">
-                <div className="timeline-header"><div className="timeline-title">Dashboard</div><div className="timeline-time">Weeks 5–8</div></div>
-                <div className="timeline-desc">Map-based web app, property detail cards, score breakdowns, mailer export, email outreach integration.</div>
-              </div>
-            </div>
-            <div className="timeline-item fade-in d3">
-              <div className="timeline-num">3</div>
-              <div className="timeline-body">
-                <div className="timeline-header"><div className="timeline-title">Enhanced Signals</div><div className="timeline-time">Weeks 9–12</div></div>
-                <div className="timeline-desc">Court records scraper (Case.net), building permits, voter file integration, model retrain, automated weekly refresh.</div>
-              </div>
-            </div>
-            <div className="timeline-item fade-in d4">
-              <div className="timeline-num">4</div>
-              <div className="timeline-body">
-                <div className="timeline-header"><div className="timeline-title">Scale</div><div className="timeline-time">Months 4–6</div></div>
-                <div className="timeline-desc">Multi-farm support, CRM integrations, automated retraining pipeline.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section white-bg">
-        <div className="section-inner">
-          <div className="fade-in">
-            <div className="section-tag">Your Role</div>
-            <h2>I build it. You sharpen it.</h2>
-            <p className="body" style={{marginBottom: '40px'}}>The technical build is on me. Your market knowledge is what turns a good model into a great one.</p>
-          </div>
-          <div className="role-item fade-in d1">
-            <div className="role-num">01</div>
-            <div><div className="role-title">Pick the test neighborhood</div><div className="role-desc">400–600 homes with decent listing volume. Somewhere you know well enough to gut-check the model's output.</div></div>
-          </div>
-          <div className="role-item fade-in d2">
-            <div className="role-num">02</div>
-            <div><div className="role-title">Gut-check the scores</div><div className="role-desc">When the first scored list drops — does the Hot list match your intuition? That feedback is how the model improves.</div></div>
-          </div>
-          <div className="role-item fade-in d3">
-            <div className="role-num">03</div>
-            <div><div className="role-title">Test the outreach</div><div className="role-desc">Run the playbook on one cycle of Hot/Warm properties. We measure conversion against your traditional farming numbers.</div></div>
-          </div>
-          <div className="role-item fade-in d4">
-            <div className="role-num">04</div>
-            <div><div className="role-title">Share local intel</div><div className="role-desc">Court records, permit patterns, HOA drama, neighborhood dynamics — signals only someone on the ground can catch.</div></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="footer-cta">
-        <div className="fade-in">
-          <h2>Let's pick the neighborhood.</h2>
-          <p>Scored property list in your hands within 3–4 weeks of locking down the farm area.</p>
-          <div className="footer-sig">— Rich</div>
-        </div>
-      </section>
-    </>
+    </div>
   );
 }
