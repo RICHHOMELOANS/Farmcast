@@ -107,6 +107,7 @@ const timelineData = [
 
 export default function FarmCastApp() {
   const [scrollY, setScrollY] = useState(0);
+  const [activeTab, setActiveTab] = useState("pitch");
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -118,6 +119,41 @@ export default function FarmCastApp() {
     <div style={{ fontFamily: "'DM Sans', sans-serif", color: NAVY, background: CREAM, overflowX: "hidden" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
+      {/* === STICKY TAB NAV === */}
+      <nav style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+        background: scrollY > 100 ? "rgba(27, 42, 74, 0.95)" : "transparent",
+        backdropFilter: scrollY > 100 ? "blur(12px)" : "none",
+        transition: "all 0.3s ease",
+        padding: "12px 24px",
+        display: "flex", justifyContent: "center", gap: 8,
+      }}>
+        {[
+          { id: "pitch", label: "The Pitch" },
+          { id: "project", label: "Project Plan" },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+            style={{
+              padding: "8px 20px", borderRadius: 20, border: "none", cursor: "pointer",
+              fontSize: 13, fontWeight: 600, letterSpacing: "0.02em",
+              background: activeTab === tab.id
+                ? (scrollY > 100 ? TEAL : "rgba(255,255,255,0.2)")
+                : "transparent",
+              color: activeTab === tab.id
+                ? "#fff"
+                : (scrollY > 100 ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.4)"),
+              transition: "all 0.2s ease",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {activeTab === "pitch" && (
+        <>
       {/* === HERO === */}
       <section style={{
         minHeight: "100vh",
@@ -609,6 +645,245 @@ export default function FarmCastApp() {
           </p>
         </FadeIn>
       </section>
+        </>
+      )}
+
+      {activeTab === "project" && (
+        <>
+      {/* === PROJECT TAB HERO === */}
+      <section style={{
+        minHeight: "40vh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        textAlign: "center",
+        padding: "100px 24px 60px",
+        position: "relative",
+        overflow: "hidden",
+        background: `linear-gradient(160deg, ${DARK} 0%, ${NAVY} 50%, ${TEAL} 100%)`,
+      }}>
+        <div style={{
+          position: "absolute", inset: 0, opacity: 0.04,
+          backgroundImage: `linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)`,
+          backgroundSize: "60px 60px",
+        }} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <h1 style={{
+            fontFamily: "'Playfair Display', serif", fontSize: "clamp(36px, 6vw, 56px)", fontWeight: 900,
+            color: "#fff", lineHeight: 1.1, margin: "0 0 16px",
+          }}>
+            Project Plan
+          </h1>
+          <p style={{ fontSize: 18, color: "rgba(255,255,255,0.6)", maxWidth: 500, margin: "0 auto" }}>
+            Gantt charts, milestones, and some fun facts to put it all in perspective.
+          </p>
+        </div>
+      </section>
+
+      {/* === PROJECT TRACKER === */}
+      <section style={{ padding: "80px 24px", background: "#fff" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>Project Tracker</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 24px" }}>
+              The build at a glance.
+            </h2>
+          </FadeIn>
+
+          {/* Gantt Chart */}
+          <FadeIn delay={0.1}>
+            <div style={{ marginBottom: 48, overflowX: "auto" }}>
+              <div style={{ minWidth: 600 }}>
+                {/* Week headers */}
+                <div style={{ display: "flex", marginBottom: 8, paddingLeft: 180 }}>
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(w => (
+                    <div key={w} style={{
+                      width: 40, textAlign: "center", fontSize: 11, fontWeight: 600,
+                      color: WARM_GRAY, flexShrink: 0
+                    }}>W{w}</div>
+                  ))}
+                </div>
+
+                {/* Gantt rows */}
+                {[
+                  { label: "Phase 1: Foundation", isPhase: true },
+                  { label: "Database & Scrapers", start: 1, duration: 2, color: TEAL },
+                  { label: "MLS + ATTOM Data", start: 2, duration: 1, color: TEAL },
+                  { label: "Feature Engineering", start: 3, duration: 1, color: TEAL },
+                  { label: "Train Model", start: 3, duration: 2, color: "#F59E0B" },
+                  { label: "Validation", start: 4, duration: 1, color: "#10B981" },
+                  { label: "Phase 2: Dashboard", isPhase: true },
+                  { label: "UI Shell + Map", start: 5, duration: 1, color: TEAL },
+                  { label: "Property Cards", start: 6, duration: 1, color: TEAL },
+                  { label: "Export + Email", start: 7, duration: 1, color: TEAL },
+                  { label: "User Testing", start: 8, duration: 1, color: "#10B981" },
+                  { label: "Phase 3: Enhanced", isPhase: true },
+                  { label: "Court Scrapers", start: 9, duration: 2, color: TEAL },
+                  { label: "Voter File", start: 10, duration: 1, color: TEAL },
+                  { label: "Retrain + Automate", start: 11, duration: 2, color: "#F59E0B" },
+                ].map((row, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", marginBottom: 4,
+                    background: row.isPhase ? NAVY : i % 2 === 0 ? "#F9FAFB" : "transparent",
+                    borderRadius: 4, padding: row.isPhase ? "8px 0" : "4px 0",
+                  }}>
+                    <div style={{
+                      width: 180, paddingLeft: 12, fontSize: 12, fontWeight: row.isPhase ? 700 : 500,
+                      color: row.isPhase ? "#fff" : DARK_GRAY, flexShrink: 0,
+                    }}>{row.label}</div>
+                    <div style={{ display: "flex", flex: 1 }}>
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(w => (
+                        <div key={w} style={{
+                          width: 40, height: row.isPhase ? 8 : 20, flexShrink: 0,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          {!row.isPhase && w >= row.start && w < row.start + row.duration && (
+                            <div style={{
+                              width: "100%", height: 14, borderRadius: 3,
+                              background: row.color,
+                              marginLeft: w === row.start ? 4 : 0,
+                              marginRight: w === row.start + row.duration - 1 ? 4 : 0,
+                              borderTopLeftRadius: w === row.start ? 7 : 0,
+                              borderBottomLeftRadius: w === row.start ? 7 : 0,
+                              borderTopRightRadius: w === row.start + row.duration - 1 ? 7 : 0,
+                              borderBottomRightRadius: w === row.start + row.duration - 1 ? 7 : 0,
+                            }} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Legend */}
+                <div style={{ display: "flex", gap: 24, marginTop: 16, paddingLeft: 180, fontSize: 11, color: WARM_GRAY }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: TEAL }} />
+                    <span>Build</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "#F59E0B" }} />
+                    <span>Train/Iterate</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "#10B981" }} />
+                    <span>Validate</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+
+          {/* Todo List */}
+          <FadeIn delay={0.2}>
+            <div style={{ fontWeight: 600, fontSize: 15, color: NAVY, marginBottom: 16 }}>Key Milestones</div>
+            <div style={{ display: "grid", gap: 8 }}>
+              {[
+                { task: "Pick test neighborhood with Stephanie", week: "Week 0", status: "pending", critical: true },
+                { task: "Scored CSV delivered for gut-check", week: "Week 4", status: "pending", critical: true },
+                { task: "Live dashboard with map + cards", week: "Week 8", status: "pending", critical: false },
+                { task: "Court records + permits integrated", week: "Week 10", status: "pending", critical: false },
+                { task: "Automated weekly refresh running", week: "Week 12", status: "pending", critical: true },
+                { task: "First outreach cycle results", week: "Week 14", status: "pending", critical: true },
+              ].map((item, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "12px 16px", borderRadius: 8,
+                  background: item.critical ? `linear-gradient(90deg, ${TEAL}11, transparent)` : "#F9FAFB",
+                  borderLeft: item.critical ? `3px solid ${TEAL}` : "3px solid #E5E7EB",
+                }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                    border: `2px solid ${item.critical ? TEAL : "#D1D5DB"}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {item.status === "done" && (
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: TEAL }} />
+                    )}
+                  </div>
+                  <div style={{ flex: 1, fontSize: 14, color: DARK_GRAY }}>{item.task}</div>
+                  <div style={{
+                    fontSize: 11, fontWeight: 600, color: item.critical ? TEAL : WARM_GRAY,
+                    textTransform: "uppercase", letterSpacing: "0.05em",
+                  }}>{item.week}</div>
+                </div>
+              ))}
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* === FUN FACTS === */}
+      <section style={{ padding: "80px 24px" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <FadeIn>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: TEAL, fontWeight: 600, marginBottom: 16 }}>For Perspective</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, color: NAVY, lineHeight: 1.2, margin: "0 0 24px" }}>
+              While we're building this...
+            </h2>
+          </FadeIn>
+
+          <FadeIn delay={0.1}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+              {[
+                { value: "186,282", unit: "mi/sec", label: "Speed of light", sub: "How fast your leads disappear to competitors" },
+                { value: "13.8", unit: "billion yrs", label: "Age of the universe", sub: "Time it feels like waiting for a cold lead to convert" },
+                { value: "500", unit: "homes", label: "Typical farm size", sub: "Only 25 will actually list this year" },
+                { value: "12", unit: "weeks", label: "Time to MVP", sub: "That's 0.0000000003% of the universe's age" },
+                { value: "8-10", unit: "listings", label: "Expected Hot conversions", sub: "Out of 25 flagged — vs. hoping 500 mailers work" },
+                { value: "∞", unit: "", label: "ROI potential", sub: "When you're the only agent with this intel" },
+              ].map((stat, i) => (
+                <div key={i} style={{
+                  padding: 20, borderRadius: 12,
+                  background: i % 2 === 0 ? "#fff" : CREAM,
+                  border: "1px solid #E5E7EB",
+                }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+                    <span style={{
+                      fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700,
+                      color: TEAL, lineHeight: 1
+                    }}>{stat.value}</span>
+                    <span style={{ fontSize: 12, color: WARM_GRAY, fontWeight: 500 }}>{stat.unit}</span>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: NAVY, marginBottom: 4 }}>{stat.label}</div>
+                  <div style={{ fontSize: 12, color: WARM_GRAY, lineHeight: 1.4 }}>{stat.sub}</div>
+                </div>
+              ))}
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* === PROJECT TAB CLOSING === */}
+      <section style={{
+        padding: "80px 24px",
+        background: `linear-gradient(160deg, ${DARK} 0%, ${NAVY} 50%, ${TEAL} 100%)`,
+        textAlign: "center",
+      }}>
+        <FadeIn>
+          <h2 style={{
+            fontFamily: "'Playfair Display', serif", fontSize: "clamp(24px, 4vw, 36px)",
+            fontWeight: 700, color: "#fff", lineHeight: 1.2, margin: "0 0 16px",
+          }}>
+            Ready to see the pitch?
+          </h2>
+          <button
+            onClick={() => { setActiveTab("pitch"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+            style={{
+              padding: "14px 32px", borderRadius: 30, border: "2px solid rgba(255,255,255,0.3)",
+              background: "transparent", color: "#fff", fontSize: 14, fontWeight: 600,
+              cursor: "pointer", transition: "all 0.2s ease",
+            }}
+            onMouseOver={e => { e.target.style.background = "rgba(255,255,255,0.1)"; e.target.style.borderColor = "rgba(255,255,255,0.5)"; }}
+            onMouseOut={e => { e.target.style.background = "transparent"; e.target.style.borderColor = "rgba(255,255,255,0.3)"; }}
+          >
+            ← Back to The Pitch
+          </button>
+        </FadeIn>
+      </section>
+        </>
+      )}
 
       <style>{`
         @keyframes fadeInUp {
